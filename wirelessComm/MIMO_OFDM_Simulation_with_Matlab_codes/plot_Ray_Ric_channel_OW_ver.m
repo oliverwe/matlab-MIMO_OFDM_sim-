@@ -1,0 +1,76 @@
+% plot_Ray_Ric_channel.m
+
+%MIMO-OFDM Wireless Communications with MATLAB¢ç   Yong Soo Cho, Jaekwon Kim, Won Young Yang and Chung G. Kang
+%2010 John Wiley & Sons (Asia) Pte Ltd
+
+% Oliver's comments and modifications
+% 1. the original script calculated the Rician Distribution wrongly.
+% 2. compare the modified calculation against the added theoretical value
+% derived from equations in 
+% Rayleigh : https://en.wikipedia.org/wiki/Rayleigh_distribution
+% Rician: https://en.wikipedia.org/wiki/Rice_distribution
+%   a) the solid lines are theoretical value from equations.
+%   a) the markers are numerical value from histograms.
+
+clf;
+clear;
+close all;
+
+sigma = 1; % power of the base Normal randn variable for Rayleith and Rician
+N=20000000;  
+v = [0.01, 0.5, 1.0, 2.0, 4.0]; % power of LOS for Rician distribution
+K = v.^2/(2*sigma^2); % K factor of Rician distribution
+K_dB=10*log10(K); % K factor in dB
+firstBin = 0; lastBin = 8; numBin = 200; 
+stpBin = (lastBin - firstBin)/numBin;
+xbins=firstBin:stpBin:lastBin;
+
+Rayleigh_ch=zeros(1,N); Rician_ch=zeros(2,N);
+color =['k','b','g','y','r','m']; line=['-']; 
+marker=['s','o','^','*','+','x']; 
+%marker=['s','o','^']; 
+
+% Rayleigh model
+%theoretical value
+x = xbins;
+Rayleigh_math = x/(sigma^2).*(exp(-1*(x.^2)/2*sigma^2));
+plt_m1 = plot(x,Rayleigh_math,[color(1) line(1)],'lineWidth',2); hold on;
+%numerical value
+Rayleigh_ch=Ray_model(sigma,N); 
+[counts,centers]=hist(abs(Rayleigh_ch(1,:)),xbins);
+pdf = counts/N/stpBin; %normalize with stpBin, so that pdf(bin)*stpBin = probability(bin)
+plt_n1 = plot(centers,pdf,[color(1) marker(1)],'lineWidth',1,'MarkerSize',3); hold on;
+expVal_Ray = sum(xbins.*pdf*stpBin);
+varVal_Ray = sum((xbins-expVal_Ray).^2.*pdf*stpBin);
+xline(expVal_Ray,[color(1) line(1) marker(1)]);
+% Rician model
+expVal_Ric= zeros(size(K));
+for i=1:length(K_dB)
+    %theoretical value
+    nu = 0;
+    Rician_math(i,:) = x/(sigma^2).*(exp(-1*(x.^2+v(i)^2)/2*sigma^2)).*besseli(nu,(x*v(i)/sigma^2));
+    plt_n(i) = plot(x,Rician_math(i,:),[color(i+1) line(1)],'lineWidth',1); hold on;
+    %numerical value
+    Rician_ch(i,:)=Ric_model(sigma,K_dB(i),N);
+    [counts,centers]=hist(abs(Rician_ch(i,:)),xbins);  
+    pdf = counts/N/stpBin;
+    plt(i) = plot(centers,pdf,[color(i+1) marker(i+1)],'lineWidth',1, 'MarkerSize',3);
+    expVal_Ric(i) = sum(xbins.*pdf*stpBin);
+    varVal_Ric(i) = sum((xbins-expVal_Ric(i)).^2.*pdf*stpBin);
+    xline(expVal_Ric(i),[color(i+1) line(1) marker(i+1)]);
+end
+
+xlabel('x(mag)'), ylabel('PDF')
+legend(...
+    [plt_n1, plt(1), plt(2), plt(3), plt(4), plt(5)], ...
+    ['Raylei, s=',num2str(sigma,'%.2f'),', E(x)=',num2str(expVal_Ray,'%.3f'),', Sig2(x)=',num2str(varVal_Ray,'%.3f')],...
+    ['Rician, v=',num2str(v(1),'%.2f'),', E(x)=',num2str(expVal_Ric(1),'%.3f'),', Sig2(x)=',num2str(varVal_Ric(1),'%.3f')],...
+    ['Rician, v=',num2str(v(2),'%.2f'),', E(x)=',num2str(expVal_Ric(2),'%.3f'),', Sig2(x)=',num2str(varVal_Ric(2),'%.3f')],...
+    ['Rician, v=',num2str(v(3),'%.2f'),', E(x)=',num2str(expVal_Ric(3),'%.3f'),', Sig2(x)=',num2str(varVal_Ric(3),'%.3f')],...
+    ['Rician, v=',num2str(v(4),'%.2f'),', E(x)=',num2str(expVal_Ric(4),'%.3f'),', Sig2(x)=',num2str(varVal_Ric(4),'%.3f')],...
+    ['Rician, v=',num2str(v(5),'%.2f'),', E(x)=',num2str(expVal_Ric(5),'%.3f'),', Sig2(x)=',num2str(varVal_Ric(5),'%.3f')]...
+    )
+grid on;
+set(gca,'XMinorGrid','on');
+set(gca,'YMinorGrid','on');
+
